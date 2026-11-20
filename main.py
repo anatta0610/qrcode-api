@@ -3,9 +3,17 @@ from fastapi.responses import StreamingResponse
 import qrcode
 from io import BytesIO
 from PIL import Image
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['http://codepractice.cn', 'http://localhost:5173'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 @app.post('/generate')
 async def generate(
