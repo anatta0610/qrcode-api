@@ -50,18 +50,21 @@ async def generate(
 
     # 处理 Logo
     if logo:
-        logo_img = Image.open(logo.file).convert('RGBA')
-        qr_size = min(img.size)
-        logo_size = int(qr_size * 0.2)
-        logo_img = logo_img.resize((logo_size, logo_size))
+        try:
+            logo_img = Image.open(logo.file).convert('RGBA')
+            qr_size = min(img.size)
+            logo_size = int(qr_size * 0.2)
+            logo_img = logo_img.resize((logo_size, logo_size))
 
-        # 白色底板
-        pad = int(logo_size * 0.1)
-        bg = Image.new('RGBA', (logo_size + pad * 2, logo_size + pad * 2), '#ffffff')
+            # 白色底板
+            pad = int(logo_size * 0.1)
+            bg = Image.new('RGBA', (logo_size + pad * 2, logo_size + pad * 2), '#ffffff')
 
-        pos = ((qr_size - logo_size) // 2, (qr_size - logo_size) // 2)
-        img.paste(bg, (pos[0] - pad, pos[1] - pad), bg)
-        img.paste(logo_img, pos, logo_img)
+            pos = ((qr_size - logo_size) // 2, (qr_size - logo_size) // 2)
+            img.paste(bg, (pos[0] - pad, pos[1] - pad), bg)
+            img.paste(logo_img, pos, logo_img)
+        except Exception:
+            pass
 
     # 输出图片
     buf = BytesIO() 
