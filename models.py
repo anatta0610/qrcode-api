@@ -1,0 +1,31 @@
+# models.py
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+# 连接发动机：用 SQLite，文件放在项目根目录的 history.db
+engine = create_engine(
+    "sqlite:///./history.db",
+    connect_args={"check_same_thread": False},  # SQLite 特有，见下方"坑 2"
+)
+
+# 类母版：所有"表类"都必须继承它
+Base = declarative_base()
+
+# 会话工厂：每次操作数据库前用 Session() 开一个会话
+Session = sessionmaker(bind=engine)
+
+
+class History(Base):
+    """历史记录表：每次生成二维码存一行"""
+
+    __tablename__ = "history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # 主键：自增编号
+    url = Column(String, nullable=False)  # 二维码内容
+    color_dark = Column(String, nullable=False)  # 深色（十六进制）
+    color_light = Column(String, nullable=False)  # 浅色（十六进制）
+    error_correction = Column(String, nullable=False)  # 容错级别 L/M/Q/H
+    has_logo = Column(Integer, default=0)  # 是否带 logo：1 有 0 无
+    created_at = Column(DateTime, default=datetime.now)  # 创建时间

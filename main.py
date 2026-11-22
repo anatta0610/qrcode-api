@@ -4,6 +4,9 @@ import qrcode
 from io import BytesIO
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
+from models import Base, History, Session, engine
+
+Base.metadata.create_all(engine)  # 启动时确保表存在（防呆）
 
 app = FastAPI()
 
@@ -74,4 +77,37 @@ async def generate(
     img.save(buf, format="PNG")
     buf.seek(0)
 
+    # 保存历史记录
+    db = Session()
+    db.add(
+        History(
+            url=url,
+            color_dark=color_dark,
+            color_light=color_light,
+            error_correction=error_correction,
+            has_logo=1 if logo else 0,
+        )
+    )
+    db.commit()
+    db.close()
+
     return StreamingResponse(buf, media_type="image/png")
+
+
+@app.get("/history")
+def get_history():
+    db = Session()
+    rows = db.query(History).order_by(History.created_at.desc()).limit(20).all()
+    db.close()
+    return [
+        {
+            "id": r.id,
+            "url": r.url,
+            "color_dark": r.color_dark,
+            "color_light": r.color_light,
+            "error_correction": r.error_correction,
+            "has_logo": r.has_logo,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
