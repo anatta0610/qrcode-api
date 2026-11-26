@@ -75,6 +75,40 @@ async def login(username: str = Form(), password: str = Form()):
     return {"token": token}
 
 
+@app.post("/register")
+async def register(username: str = Form(), password: str = Form()):
+    if not username or not password:
+        return {"error": "用户名和密码不能为空"}
+
+    db = Session()
+    exists = db.query(User).filter(User.username == username).first()
+    if exists:
+        db.close()
+        return {"error": "用户名已存在"}
+
+    # 哈希后入库；decode 是把 bytes 转回 str，方便 SQLite 存取
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    db.add(User(username=username, password_hash=hashed))
+    db.commit()
+    db.close()
+    return {"ok": True}
+
+
+@app.post("/login")
+async def login(username: str = Form(), password: str = Form()):
+    db = Session()
+    user = db.query(User).filter(User.username == username).first()
+    # 用户不存在 和 密码错误 返回同一句话：不告诉攻击者到底是哪一步错了
+    if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+        db.close()
+        return {"error": "用户名或密码错误"}
+    token = secrets.token_hex(32)  # 32 字节随机数 → 64 位十六进制
+    db.add(Token(token=token, user_id=user.id))
+    db.commit()
+    db.close()
+    return {"token": token}
+
+
 @app.post("/generate")
 async def generate(
     url: str = Form(),
