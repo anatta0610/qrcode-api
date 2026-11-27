@@ -131,6 +131,10 @@ async def generate(
         back_color=color_light,
     ).convert("RGBA")
 
+    # width 是目标边长：先生成自然尺寸，再缩放到精确的 width
+    # NEAREST（最近邻）保持黑白格边缘锐利；默认插值会把格子糊掉、影响扫码
+    img = img.resize((width, width), Image.NEAREST)
+
     # 处理 Logo
     if logo:
         try:
