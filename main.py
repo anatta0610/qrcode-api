@@ -29,9 +29,10 @@ app.add_middleware(
 security = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
+def get_token_row(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ):
+    """验票：查库、验期，返回 tokens 表那一行"""
     if not credentials:
         raise HTTPException(status_code=401, detail="未登录")
     db = Session()
@@ -41,19 +42,23 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="未登录")
     if row.expires_at < datetime.now():
         raise HTTPException(status_code=401, detail="登录已过期")
+    return row
+
+
+def get_current_user(row: Token = Depends(get_token_row)):
     return row.user_id
 
 
-@app.post("/register")
+@app.post("/register", status_code=201)
 async def register(username: str = Form(), password: str = Form()):
     if not username or not password:
-        return {"error": "用户名和密码不能为空"}
+        raise HTTPException(status_code=400, detail="用户名和密码不能为空")
 
     db = Session()
     exists = db.query(User).filter(User.username == username).first()
     if exists:
         db.close()
-        return {"error": "用户名已存在"}
+        raise HTTPException(status_code=409, detail="用户名已存在")
 
     # 哈希后入库；decode 是把 bytes 转回 str，方便 SQLite 存取
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
@@ -70,7 +75,8 @@ async def login(username: str = Form(), password: str = Form()):
     # 用户不存在 和 密码错误 返回同一句话：不告诉攻击者到底是哪一步错了
     if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
         db.close()
-        return {"error": "用户名或密码错误"}
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+
     token = secrets.token_hex(32)  # 32 字节随机数 → 64 位十六进制
     db.add(
         Token(
@@ -80,6 +86,15 @@ async def login(username: str = Form(), password: str = Form()):
     db.commit()
     db.close()
     return {"token": token}
+
+
+@app.post("/logout")
+def logout(row: Token = Depends(get_token_row)):
+    db = Session()
+    db.delete(row)  # SQLAlchemy 按主键删这一行
+    db.commit()
+    db.close()
+    return {"ok": True}
 
 
 @app.post("/generate")
