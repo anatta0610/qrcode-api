@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# 连接发动机：用 SQLite，文件放在项目根目录的 history.db
 engine = create_engine(
     "sqlite:///./app.db",
     connect_args={"check_same_thread": False},  # SQLite 特有，见下方"坑 2"
@@ -51,3 +50,4 @@ class Token(Base):
     token = Column(String, nullable=False, unique=True)  # 通行证本身
     user_id = Column(Integer, nullable=False)  # 谁的通行证
     created_at = Column(DateTime, default=datetime.now)  # 签发时间
+    expires_at = Column(DateTime, nullable=False)  # 过期时间：到期即失效

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI, UploadFile, HTTPException, File, Form, Depends
 from models import Base, Session, engine, User, Token, History
+from datetime import datetime, timedelta
 
 Base.metadata.create_all(engine)  # 启动时确保表存在（防呆）
 
@@ -38,6 +39,8 @@ def get_current_user(
     db.close()
     if not row:
         raise HTTPException(status_code=401, detail="未登录")
+    if row.expires_at < datetime.now():
+        raise HTTPException(status_code=401, detail="登录已过期")
     return row.user_id
 
 
@@ -69,19 +72,11 @@ async def login(username: str = Form(), password: str = Form()):
         db.close()
         return {"error": "用户名或密码错误"}
     token = secrets.token_hex(32)  # 32 字节随机数 → 64 位十六进制
-    db.add(Token(token=token, user_id=user.id))
-    db.commit()
-    db.close()
-    return {"token": token}
-
-    db = Session()
-    user = db.query(User).filter(User.username == username).first()
-    # 用户不存在 和 密码错误 返回同一句话：不告诉攻击者到底是哪一步错了
-    if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
-        db.close()
-        return {"error": "用户名或密码错误"}
-    token = secrets.token_hex(32)  # 32 字节随机数 → 64 位十六进制
-    db.add(Token(token=token, user_id=user.id))
+    db.add(
+        Token(
+            token=token, user_id=user.id, expires_at=datetime.now() + timedelta(days=7)
+        )
+    )
     db.commit()
     db.close()
     return {"token": token}
